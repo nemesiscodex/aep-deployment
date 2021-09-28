@@ -1,0 +1,53 @@
+version: "3"
+services:
+  postgres:
+    image: postgis/postgis:13-3.1-alpine
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: "${AEP_POSTGRES_PASSWORD}"
+      POSTGRES_USER: aep
+      POSTGRES_DB: aep
+    ports:
+      - 5432:5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  aep-collector:
+    image: nemesiscodex/aep-collector:latest
+    environment:
+      WAIT: 5
+      RUST_LOG: info
+      HOST: 0.0.0.0
+      PORT: 8080
+      API_KEY: "${AEP_COLLECTOR_API_KEY}"
+      DATABASE_URL: "postgres://aep:${AEP_POSTGRES_PASSWORD}@postgres:5432/aep"
+    ports:
+      - 8080:8080
+  aep-dashboard:
+    image: nemesiscodex/aep-dashboard:latest
+    ports:
+      - 8000:8000
+    environment:
+      DJANGO_SECRET_KEY: "${AEP_DASHBOARD_SECRET_KEY}"
+      DJANGO_DEBUG: "false"
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: aep
+      DATABASE_USER: aep
+      DATABASE_PASSWORD: "${AEP_POSTGRES_PASSWORD}"
+  aep-dashboard-cron:
+    image: nemesiscodex/aep-dashboard:latest
+    environment:
+      DJANGO_SECRET_KEY: "${AEP_DASHBOARD_SECRET_KEY}"
+      DJANGO_DEBUG: "false"
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: aep
+      DATABASE_USER: aep
+      DATABASE_PASSWORD: "${AEP_POSTGRES_PASSWORD}"
+    command: ["sh", "/app/crontab.sh"]
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  pgdata:
